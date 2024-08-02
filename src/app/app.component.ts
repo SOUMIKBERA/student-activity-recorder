@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { MediaRecorderService } from './media-recorder.service';
 
 @Component({
   selector: 'app-root',
@@ -7,4 +8,15 @@ import { Component } from '@angular/core';
 })
 export class AppComponent {
   title = 'student-activity-recorder';
+
+  constructor(private mediaRecorderService: MediaRecorderService) {}
+
+  startRecording() {
+    this.mediaRecorderService.startRecording();
+  }
+
+  stopRecording() {
+    this.mediaRecorderService.stopRecording();
+  }
 }
+
