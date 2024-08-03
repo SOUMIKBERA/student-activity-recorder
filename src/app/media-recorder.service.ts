@@ -11,6 +11,8 @@ export class MediaRecorderService {
   private screenStream: MediaStream | null = null;
   private cameraStream: MediaStream | null = null;
   private mediaSource: string = 'unknown';
+  private screenBlob: Blob | null = null;
+  private cameraBlob: Blob | null = null;
 
   constructor() { }
 
@@ -22,12 +24,16 @@ export class MediaRecorderService {
         const screenTrack = this.screenStream.getVideoTracks()[0];
         const settings = screenTrack.getSettings() as any;
         this.mediaSource = settings.displaySurface || 'unknown';
-        
+
         this.screenRecorder = new MediaRecorder(this.screenStream);
         this.screenRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             this.screenChunks.push(event.data);
           }
+        };
+        this.screenRecorder.onstop = () => {
+          this.screenBlob = new Blob(this.screenChunks, { type: 'video/webm' });
+          this.screenChunks = [];
         };
         this.screenRecorder.start();
       }
@@ -45,6 +51,10 @@ export class MediaRecorderService {
             this.cameraChunks.push(event.data);
           }
         };
+        this.cameraRecorder.onstop = () => {
+          this.cameraBlob = new Blob(this.cameraChunks, { type: 'video/webm' });
+          this.cameraChunks = [];
+        };
         this.cameraRecorder.start();
       }
     } catch (error) {
@@ -52,27 +62,34 @@ export class MediaRecorderService {
     }
   }
 
-  stopRecording(): { screenBlob: Blob, cameraBlob: Blob } {
-    if (this.screenRecorder) {
-      this.screenRecorder.stop();
-      this.screenRecorder.onstop = () => {
-        console.log('Screen recording stopped');
-      };
-    }
-    if (this.cameraRecorder) {
-      this.cameraRecorder.stop();
-      this.cameraRecorder.onstop = () => {
-        console.log('Camera recording stopped');
-      };
-    }
+  async stopRecording(): Promise<{ screenBlob: Blob | null, cameraBlob: Blob | null }> {
+    return new Promise((resolve) => {
+      if (this.screenRecorder) {
+        this.screenRecorder.onstop = () => {
+          this.screenBlob = new Blob(this.screenChunks, { type: 'video/webm' });
+          this.screenChunks = [];
+          if (!this.cameraRecorder || this.cameraBlob !== null) {
+            resolve({ screenBlob: this.screenBlob, cameraBlob: this.cameraBlob });
+          }
+        };
+        this.screenRecorder.stop();
+      }
 
-    const screenBlob = new Blob(this.screenChunks, { type: 'video/webm' });
-    const cameraBlob = new Blob(this.cameraChunks, { type: 'video/webm' });
+      if (this.cameraRecorder) {
+        this.cameraRecorder.onstop = () => {
+          this.cameraBlob = new Blob(this.cameraChunks, { type: 'video/webm' });
+          this.cameraChunks = [];
+          if (!this.screenRecorder || this.screenBlob !== null) {
+            resolve({ screenBlob: this.screenBlob, cameraBlob: this.cameraBlob });
+          }
+        };
+        this.cameraRecorder.stop();
+      }
 
-    this.screenChunks = [];
-    this.cameraChunks = [];
-
-    return { screenBlob, cameraBlob };
+      if (!this.screenRecorder && !this.cameraRecorder) {
+        resolve({ screenBlob: this.screenBlob, cameraBlob: this.cameraBlob });
+      }
+    });
   }
 
   getScreenStream(): MediaStream | null {
@@ -87,3 +104,7 @@ export class MediaRecorderService {
     return this.mediaSource;
   }
 }
+
+
+
+

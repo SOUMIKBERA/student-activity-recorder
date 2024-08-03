@@ -24,33 +24,35 @@ export class RecordControlsComponent {
   async stopRecording(): Promise<void> {
     this.isRecording = false;
 
-    // Add a small delay before stopping to ensure data is captured
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Stop the recording and retrieve Blob data
+    const { screenBlob, cameraBlob } = await this.mediaRecorderService.stopRecording();
 
-    const { screenBlob, cameraBlob } = this.mediaRecorderService.stopRecording();
-
-    // Ensure all data chunks are available before creating the Blob URLs
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Check if the blobs are not empty before creating URLs
-    if (screenBlob.size > 0) {
-      const screenUrl = URL.createObjectURL(screenBlob);
-      const screenLink = document.createElement('a');
-      screenLink.href = screenUrl;
-      screenLink.download = 'screen-recording.webm';
-      screenLink.click();
+    // Check if the blobs are not empty before attempting to create URLs
+    if (screenBlob && screenBlob.size > 0) {
+      this.downloadBlob(screenBlob, 'screen-recording.webm');
     } else {
       console.error('Screen recording blob is empty.');
     }
 
-    if (cameraBlob.size > 0) {
-      const cameraUrl = URL.createObjectURL(cameraBlob);
-      const cameraLink = document.createElement('a');
-      cameraLink.href = cameraUrl;
-      cameraLink.download = 'camera-recording.webm';
-      cameraLink.click();
+    if (cameraBlob && cameraBlob.size > 0) {
+      this.downloadBlob(cameraBlob, 'camera-recording.webm');
     } else {
       console.error('Camera recording blob is empty.');
     }
   }
+
+  // Helper method to handle Blob download
+  private downloadBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none'; // Hide the link
+    document.body.appendChild(link); // Append to body to ensure it works in some browsers
+    link.click();
+    document.body.removeChild(link); // Clean up
+    URL.revokeObjectURL(url); // Clean up URL object
+  }
 }
+
+
