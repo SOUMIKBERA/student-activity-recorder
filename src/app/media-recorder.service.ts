@@ -15,33 +15,55 @@ export class MediaRecorderService {
   constructor() { }
 
   async startRecording(): Promise<void> {
-    // Capture screen
-    this.screenStream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true });
-    if (this.screenStream) {
-      const screenTrack = this.screenStream.getVideoTracks()[0];
-      const settings = screenTrack.getSettings() as any;
-      this.mediaSource = settings.displaySurface || 'unknown';
-      
-      this.screenRecorder = new MediaRecorder(this.screenStream);
-      this.screenRecorder.ondataavailable = (event) => this.screenChunks.push(event.data);
-      this.screenRecorder.start();
+    try {
+      // Capture screen
+      this.screenStream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true });
+      if (this.screenStream) {
+        const screenTrack = this.screenStream.getVideoTracks()[0];
+        const settings = screenTrack.getSettings() as any;
+        this.mediaSource = settings.displaySurface || 'unknown';
+        
+        this.screenRecorder = new MediaRecorder(this.screenStream);
+        this.screenRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            this.screenChunks.push(event.data);
+          }
+        };
+        this.screenRecorder.start();
+      }
+    } catch (error) {
+      console.error('Error capturing screen:', error);
     }
 
-    // Capture camera
-    this.cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    if (this.cameraStream) {
-      this.cameraRecorder = new MediaRecorder(this.cameraStream);
-      this.cameraRecorder.ondataavailable = (event) => this.cameraChunks.push(event.data);
-      this.cameraRecorder.start();
+    try {
+      // Capture camera
+      this.cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      if (this.cameraStream) {
+        this.cameraRecorder = new MediaRecorder(this.cameraStream);
+        this.cameraRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            this.cameraChunks.push(event.data);
+          }
+        };
+        this.cameraRecorder.start();
+      }
+    } catch (error) {
+      console.error('Error capturing camera:', error);
     }
   }
 
   stopRecording(): { screenBlob: Blob, cameraBlob: Blob } {
     if (this.screenRecorder) {
       this.screenRecorder.stop();
+      this.screenRecorder.onstop = () => {
+        console.log('Screen recording stopped');
+      };
     }
     if (this.cameraRecorder) {
       this.cameraRecorder.stop();
+      this.cameraRecorder.onstop = () => {
+        console.log('Camera recording stopped');
+      };
     }
 
     const screenBlob = new Blob(this.screenChunks, { type: 'video/webm' });
@@ -65,4 +87,3 @@ export class MediaRecorderService {
     return this.mediaSource;
   }
 }
-
